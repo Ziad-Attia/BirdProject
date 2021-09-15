@@ -51,8 +51,8 @@ for ind in data.index:
             num+=1
         
 
-geoNorth  = pd.DataFrame(columns = ["Bird", "City1-Latitude ", "City1-Longitude", "City2-Latitude ", "City2-Longitude", "City3-Latitude ", "City3-Longitude", "City4-Latitude ", "City4-Longitude", "City5-Latitude ", "City5-Longitude", "City6-Latitude ", "City6-Longitude"])
-geoSouth  = pd.DataFrame(columns = ["Bird", "City1-Latitude ", "City1-Longitude", "City2-Latitude ", "City2-Longitude", "City3-Latitude ", "City3-Longitude", "City4-Latitude ", "City4-Longitude", "City5-Latitude ", "City5-Longitude", "City6-Latitude ", "City6-Longitude"])
+geoNorth  = pd.DataFrame()
+geoSouth  = pd.DataFrame()
 geoNorth["Bird"] = addressesNorth["Bird"]
 geoSouth["Bird"] = addressesSouth["Bird"]
 
@@ -65,7 +65,6 @@ for i in range(1,7):
     geoNorth['City'+str(i)+"-Longitude"] = addressesNorth['location'+str(i)].apply(lambda loc: loc.point.longitude if loc else None)
     geoSouth['City'+str(i)+"-Latitude"] = addressesSouth['location'+str(i)].apply(lambda loc: loc.point.latitude if loc else None)
     geoSouth['City'+str(i)+"-Longitude"] = addressesSouth['location'+str(i)].apply(lambda loc: loc.point.longitude if loc else None)
-    
 geoNorth.to_csv('D:/bird data/geoNorth.csv')
 geoSouth.to_csv('D:/bird data/geoSouth.csv')
 addressesNorth.to_csv('D:/bird data/addressesNorth.csv')
