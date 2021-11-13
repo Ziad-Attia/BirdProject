@@ -1,0 +1,1092 @@
+---
+title: "Bird_Code"
+author: "Aziz Ur Rehman Zafar"
+date: "10/17/2021"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+``` {r f.to.c, echo = F}
+
+f.to.c <- function(x) (x - 32) / 1.8
+```
+
+``` {r find_days, echo =F}
+find_days = function(data, year, pole){
+  if (pole == "North"){
+    max_year = maxNorthData %>% dplyr::select(ends_with(year))
+    min_year = minNorthData %>% dplyr::select(ends_with(year))
+    
+    Days_outside_limit = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      Days_outside_limit[row] = length(which(max_year[row,] > UCT[row] |
+                                                    min_year[row,]<
+                                                    LCT[row]))
+    }
+    data = cbind(data, Days_outside_limit)
+    names(data)[names(data) == 'Days_outside_limit'] <- 
+      paste('Days_outside_limit', year, sep ="")
+    data
+  }
+  else {
+    max_year = maxSouthData %>% dplyr::select(ends_with(year))
+    min_year = minSouthData %>% dplyr::select(ends_with(year))
+    Days_outside_limit = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      Days_outside_limit[row] = length(which(max_year[row,] > UCT[row] |
+                                                    min_year[row,]<
+                                                    LCT[row]))
+    }
+    
+    data = cbind(data, Days_outside_limit)
+    names(data)[names(data) == 'Days_outside_limit'] <- 
+      paste('Days_outside_limit', year, sep ="")
+    data
+  }
+}
+```
+
+``` {r find_diff, echo = F}
+find_diff = function(data, year, pole){
+  if (pole == "North"){
+    max_year = maxNorthData %>% dplyr::select(ends_with(year))
+    min_year = minNorthData %>% dplyr::select(ends_with(year))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if ((max_year[row,col] > UCT[row]) & (min_year[row,col] < LCT[row])){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+  else {
+    max_year = maxSouthData %>% dplyr::select(ends_with(year))
+    min_year = minSouthData %>% dplyr::select(ends_with(year))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row] & min_year[row,col] < LCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+}
+
+```
+
+```{r Using Days, message =F, echo = F, eval = F}
+library(dplyr)
+library(tidyverse)
+library(ez)
+library(PMCMR)
+library(lme4)
+library(lmerTest)
+library(arm)
+library(RColorBrewer)
+maxNorthData = read.csv("FinalNorthMaxTemp.csv")
+minNorthData = read.csv("FinalNorthMinTemp.csv")
+maxSouthData = read.csv("FinalSouthMaxTemp.csv")
+minSouthData = read.csv("FinalSouthMinTemp.csv")
+
+UCT = maxNorthData$UCT
+LCT = maxNorthData$LCT
+Body_mass_g = maxNorthData$Body.mass..g.
+
+North_Days = maxNorthData %>% dplyr::select(Bird) %>% add_column(Body_mass_g)
+South_Days = North_Days
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  North_Days = find_days(North_Days, year = year, pole = "North")
+  South_Days = find_days(South_Days, year = year, pole = "South")
+}
+
+North_Days$Bird = as.factor(North_Days$Bird)
+South_Days$Bird = as.factor(South_Days$Bird)
+
+boxplot(North_Days$Days_outside_limit.15,North_Days$Days_outside_limit.16,
+        North_Days$Days_outside_limit.17,
+        North_Days$Days_outside_limit.18,
+        North_Days$Days_outside_limit.19, names = c("2015", "2016", "2017", "2018",
+                                                    "2019"))
+boxplot(South_Days$Days_outside_limit.15,South_Days$Days_outside_limit.16,
+        South_Days$Days_outside_limit.17,
+        South_Days$Days_outside_limit.18,
+        South_Days$Days_outside_limit.19, names = c("2015", "2016", "2017", "2018",
+                                                    "2019"))
+
+North_Days= North_Days %>% pivot_longer(!c(Bird, Body_mass_g), names_to = "Year",
+                                        values_to = "Days_Outside_Limit")
+South_Days = South_Days %>% pivot_longer(!c(Bird, Body_mass_g), names_to = "Year",
+                                        values_to = "Days_Outside_Limit")
+
+friedman.test(Days_Outside_Limit ~ Year | Bird, data = North_Days)
+posthoc.friedman.nemenyi.test(Days_Outside_Limit ~ Year | Bird, data = North_Days)
+
+
+friedman.test(Days_Outside_Limit ~ Year | Bird, data = South_Days)
+posthoc.friedman.nemenyi.test(Days_Outside_Limit ~ Year | Bird, data = South_Days)
+
+
+
+lm1 = lmerTest::lmer(Days_Outside_Limit ~  Year + (1 | Bird), data = North_Days)
+summary(lm1)
+plot(lm1)
+qqnorm(resid(lm1))
+qqline(resid(lm1))
+
+lm1.2 = lmerTest::lmer(Days_Outside_Limit ~  Year + (1 | Bird), data = South_Days)
+summary(lm1.2)
+plot(lm1.2)
+
+lm2 = lmerTest::lmer(Days_Outside_Limit ~ Body_mass_g + (1 | Bird),
+                     data = North_Days)
+summary(lm2)
+plot(lm2)
+qqnorm(resid(lm2))
+qqline(resid(lm2))
+
+lm3 = lmerTest::lmer(Days_Outside_Limit ~ Body_mass_g + (1 | Bird),
+                     data = South_Days)
+summary(lm3)
+qqnorm(resid(lm3))
+qqline(resid(lm3))
+```
+
+
+```{r Using the difference, message = F, echo = F}
+library(dplyr)
+library(tidyverse)
+library(ez)
+library(PMCMR)
+library(lme4)
+library(lmerTest)
+library(arm)
+maxNorthData = read.csv("FinalNorthMaxTemp.csv")
+minNorthData = read.csv("FinalNorthMinTemp.csv")
+maxSouthData = read.csv("FinalSouthMaxTemp.csv")
+minSouthData = read.csv("FinalSouthMinTemp.csv")
+
+UCT = maxNorthData$UCT
+LCT = maxNorthData$LCT
+Body_mass_g = maxNorthData$Body.mass..g.
+Order = maxNorthData$Order
+
+North_Diff = maxNorthData %>% dplyr::select(Bird) %>% add_column(Body_mass_g)%>%
+  add_column(Order)
+South_Diff = North_Diff
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  North_Diff = find_diff(North_Diff, year = year, pole = "North")
+  South_Diff = find_diff(South_Diff, year = year, pole = "South")
+}
+
+North_Diff$Bird = as.factor(North_Diff$Bird)
+South_Diff$Bird = as.factor(South_Diff$Bird)
+
+North_Lifespan = North_Diff
+South_Lifespan = South_Diff
+#Duplicates for the Lifespan Analysis
+
+# boxplot(North_Days$Avg_Diff.15,North_Days$Avg_Diff.16,
+#         North_Days$Avg_Diff.17,
+#         North_Days$Avg_Diff.18,
+#         North_Days$Avg_Diff.19, names = c("2015", "2016", "2017", "2018",
+#                                                     "2019"))
+# boxplot(South_Days$Avg_Diff.15,South_Days$Avg_Diff.16,
+#         South_Days$Avg_Diff.17,
+#         South_Days$Avg_Diff.18,
+#         South_Days$Avg_Diff.19, names = c("2015", "2016", "2017", "2018",
+#                                                     "2019"))
+colnames(North_Diff) = str_replace(colnames(North_Diff), "Avg_Diff.", "20")
+colnames(South_Diff) = str_replace(colnames(South_Diff), "Avg_Diff.", "20")
+
+North_Diff= North_Diff %>% pivot_longer(!c(Bird, Body_mass_g, Order),
+                                        names_to = "Year",
+                                        values_to = "Avg_Difference")
+South_Diff = South_Diff %>% pivot_longer(!c(Bird, Body_mass_g,Order),
+                                         names_to = "Year",
+                                        values_to = "Avg_Difference")
+
+##### Normality Checks
+# North_Diff = North_Diff %>% mutate(LogDiff = log(Avg_Difference +5))
+# South_Diff = South_Diff %>% mutate(LogDiff = log(Avg_Difference +14))
+# g1 = ggplot(data = North_Diff, aes(Avg_Difference, fill = Year)) +
+#   geom_histogram(bins= 30)+
+#   stat_theodensity(aes(y = after_stat(count)))+
+#   facet_wrap(~Year)
+# g1
+# 
+# g2 = ggplot(data = South_Diff, aes(Avg_Difference, fill = Year)) +
+#   geom_histogram(bins= 30)+
+#   stat_theodensity(aes(y = after_stat(count)))+
+#   facet_wrap(~Year)
+# g2
+
+
+##### 
+# print('Normality Assumption')
+# hist(North_Diff$Avg_Difference[North_Diff$Year == "2015"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2015, North", xlab = "Average Difference")
+# curve(dnorm(x,mean(North_Diff$Avg_Difference[North_Diff$Year == "2015"]), sd(North_Diff$Avg_Difference[North_Diff$Year == "2015"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(North_Diff$Avg_Difference[North_Diff$Year == "2015"])
+# 
+# hist(North_Diff$Avg_Difference[North_Diff$Year == "2016"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2016, North", xlab = "Average Difference")
+# curve(dnorm(x,mean(North_Diff$Avg_Difference[North_Diff$Year == "2016"]), sd(North_Diff$Avg_Difference[North_Diff$Year == "2016"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(North_Diff$Avg_Difference[North_Diff$Year == "2016"])
+# 
+# hist(North_Diff$Avg_Difference[North_Diff$Year == "2017"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2017, North", xlab = "Average Difference")
+# curve(dnorm(x,mean(North_Diff$Avg_Difference[North_Diff$Year == "2017"]), sd(North_Diff$Avg_Difference[North_Diff$Year == "2017"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(North_Diff$Avg_Difference[North_Diff$Year == "2017"])
+# 
+# hist(North_Diff$Avg_Difference[North_Diff$Year == "2018"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2018, North", xlab = "Average Difference")
+# curve(dnorm(x,mean(North_Diff$Avg_Difference[North_Diff$Year == "2018"]), sd(North_Diff$Avg_Difference[North_Diff$Year == "2018"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(North_Diff$Avg_Difference[North_Diff$Year == "2018"])
+# 
+# hist(North_Diff$Avg_Difference[North_Diff$Year == "2019"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2019, North", xlab = "Average Difference")
+# curve(dnorm(x,mean(North_Diff$Avg_Difference[North_Diff$Year == "2019"]), sd(North_Diff$Avg_Difference[North_Diff$Year == "2019"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(North_Diff$Avg_Difference[North_Diff$Year == "2019"])
+# 
+# #Now South
+# hist(South_Diff$Avg_Difference[South_Diff$Year == "2015"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2015, South", xlab = "Average Difference")
+# curve(dnorm(x,mean(South_Diff$Avg_Difference[South_Diff$Year == "2015"]), sd(South_Diff$Avg_Difference[South_Diff$Year == "2015"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(South_Diff$Avg_Difference[South_Diff$Year == "2015"])
+# 
+# hist(South_Diff$Avg_Difference[South_Diff$Year == "2016"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2016, South", xlab = "Average Difference")
+# curve(dnorm(x,mean(South_Diff$Avg_Difference[South_Diff$Year == "2016"]), sd(South_Diff$Avg_Difference[South_Diff$Year == "2016"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(South_Diff$Avg_Difference[South_Diff$Year == "2016"])
+# 
+# hist(South_Diff$Avg_Difference[South_Diff$Year == "2017"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2017, South", xlab = "Average Difference")
+# curve(dnorm(x,mean(South_Diff$Avg_Difference[South_Diff$Year == "2017"]), sd(South_Diff$Avg_Difference[South_Diff$Year == "2017"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(South_Diff$Avg_Difference[South_Diff$Year == "2017"])
+# 
+# hist(South_Diff$Avg_Difference[South_Diff$Year == "2018"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2018, South", xlab = "Average Difference")
+# curve(dnorm(x,mean(South_Diff$Avg_Difference[South_Diff$Year == "2018"]), sd(South_Diff$Avg_Difference[South_Diff$Year == "2018"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(South_Diff$Avg_Difference[South_Diff$Year == "2018"])
+# 
+# hist(South_Diff$Avg_Difference[South_Diff$Year == "2019"], freq =F, ylim = c(0,0.10),
+#      main = "Histogram for 2019, South", xlab = "Average Difference")
+# curve(dnorm(x,mean(South_Diff$Avg_Difference[South_Diff$Year == "2019"]), sd(South_Diff$Avg_Difference[South_Diff$Year == "2019"])), 0,
+#       30, add=TRUE,col="red")
+# shapiro.test(South_Diff$Avg_Difference[South_Diff$Year == "2019"])
+
+#####
+##### Parametric Tests
+print("Parametric Tests")
+ez1 = ezANOVA(data = North_Diff, dv = .(Avg_Difference), wid = .(Bird),
+              within = .(Year))
+ez1$ANOVA
+ez1$`Mauchly's Test for Sphericity`
+ez1$`Sphericity Corrections`
+print("Sphericity assumption not met. Adjusted p-value is 2.73e-11. Repeated
+      Measures ANOVA")
+pairwise.t.test(North_Diff$Avg_Difference, North_Diff$Year, paired =T, p.adjust.method = "BH",
+                alternative = "greater")
+
+ez2 = ezANOVA(data = South_Diff, dv = .(Avg_Difference), wid = .(Bird),
+              within = .(Year))
+ez2$ANOVA
+ez2$`Mauchly's Test for Sphericity`
+ez2$`Sphericity Corrections`
+print("p-value here is 3.47e-5")
+pairwise.t.test(South_Diff$Avg_Difference, South_Diff$Year, paired =T, p.adjust.method = "BH",
+                alternative = "greater")
+
+##### Non-paramteric (Similar conclusion!)
+print("Non Parametric Alternatives")
+friedman.test(Avg_Difference ~ Year | Bird, data = North_Diff)
+posthoc.friedman.nemenyi.test(Avg_Difference ~ Year | Bird, data = North_Diff)
+
+
+friedman.test(Avg_Difference ~ Year | Bird, data = South_Diff)
+posthoc.friedman.nemenyi.test(Avg_Difference ~ Year | Bird, data = South_Diff)
+
+##### Boxplots
+
+# box.North = ggplot(data = North_Diff, mapping = aes(y = Avg_Difference, x = Year))+
+#   geom_boxplot()+ggtitle("North")
+# box.North
+# 
+# box.South = ggplot(data = South_Diff, mapping = aes(y = Avg_Difference, x = Year))+
+#   geom_boxplot() +ggtitle("South")
+# box.South
+# 
+# ##### Bar Plots
+# summary.North = summarize(group_by(North_Diff, Year), MeanAvg_Difference = mean(Avg_Difference),
+#                           SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+# summary.South = summarize(group_by(South_Diff, Year), MeanAvg_Difference = mean(Avg_Difference),
+#                           SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+# 
+# print("Barplots")
+# bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+#   geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+#   geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+#     labs(y="Average Difference")+
+#   scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North")
+# bar.North
+# 
+# bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+#   geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+#   geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+#     labs(y="Average Difference")+
+#   scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South")
+# bar.South
+
+
+##### Confidence Intervals
+print("2 Standard errors, comparing year to year differences")
+North_Diff_wide= North_Diff %>% pivot_wider(names_from = "Year",
+                                        values_from = "Avg_Difference")
+South_Diff_wide= South_Diff %>% pivot_wider(names_from = "Year",
+                                        values_from = "Avg_Difference")
+
+m = data.frame(combn(colnames(North_Diff_wide[3:7]),2), stringsAsFactors = F)
+df1 = data.frame(lapply(m, function(x) North_Diff_wide[[x[2]]] - North_Diff_wide[[x[1]]]))
+colnames(df1) = lapply(m, function(x) paste(x[2], x[1], sep="-"))
+North_Diff_wide = df1
+
+m = data.frame(combn(colnames(South_Diff_wide[3:7]),2), stringsAsFactors = F)
+df1 = data.frame(lapply(m, function(x) South_Diff_wide[[x[2]]] - South_Diff_wide[[x[1]]]))
+colnames(df1) = lapply(m, function(x) paste(x[2], x[1], sep="-"))
+South_Diff_wide = df1
+
+North_Diff_wide = North_Diff_wide %>% pivot_longer(cols = everything(), names_to = "Year",
+                                        values_to = "Difference")
+
+South_Diff_wide = South_Diff_wide %>% pivot_longer(cols = everything(),names_to = "Year",
+                                        values_to = "Difference")
+
+
+summary.North = summarize(group_by(North_Diff_wide, Year), Mean = mean(Difference),
+                          SE = 2* sd(Difference)/sqrt(length(Difference)))
+summary.South = summarize(group_by(South_Diff_wide, Year), Mean = mean(Difference),
+                          SE = 2* sd(Difference)/sqrt(length(Difference)))
+
+print("Barplots")
+bar.North = ggplot(summary.North, aes(x =as.factor(Year), Mean)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean +SE), width=0.2) +
+    labs(y="Average Difference", x = "Year to Year")+ theme_classic()+
+  geom_hline(yintercept =0)+ggtitle("North")+
+  theme(text = element_text(size=8))
+tiff(filename = "North_Pairwise.tiff",width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+
+bar.South = ggplot(summary.South, aes(x =as.factor(Year), Mean)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean +SE), width=0.2) +
+    labs(y="Average Difference", x= "Year to Year")+ theme_classic() + 
+  geom_hline(yintercept =0) +ggtitle("South")+
+  theme(text = element_text(size=8))
+tiff(filename = "South_Pairwise.tiff",width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+
+##### Some models
+
+# lm1 = lmerTest::lmer(Avg_Difference ~  Year + (1 | Bird), data = North_Diff)
+# summary(lm1)
+# plot(lm1)
+# qqnorm(resid(lm1))
+# qqline(resid(lm1))
+# 
+# lm1.2 = lmerTest::lmer(Avg_Difference ~  Year + (1 | Bird), data = South_Diff)
+# summary(lm1.2)
+# plot(lm1.2)
+print("Repeated Measures ANCOVA -- using log(Body Mass)")
+lm2 = lmerTest::lmer(Avg_Difference ~ log(Body_mass_g) + (1 | Year),
+                     data = North_Diff)
+summary(lm2)
+plot(lm2)
+qqnorm(resid(lm2))
+qqline(resid(lm2))
+
+lm3 = lmerTest::lmer(Avg_Difference ~ log(Body_mass_g)  + (1 | Year),
+                     data = South_Diff)
+summary(lm3)
+qqnorm(resid(lm3))
+qqline(resid(lm3))
+
+North_Diff = North_Diff %>% mutate(Order = if_else(Order == "Passeriformes",
+                                                      "Passeriformes",
+                                                      "Non-Passeriformes"))
+South_Diff = South_Diff %>% mutate(Order = if_else(Order == "Passeriformes",
+                                                      "Passeriformes",
+                                                      "Non-Passeriformes"))
+
+sink(file = "Order_test.txt")
+
+print("Difference between orders for North (taking into account Year)")
+lm4 = lmerTest::lmer(Avg_Difference ~ Order + (1|Year), data = North_Diff)
+summary(lm4)
+
+print("In the North, Passeriformes are being more affected by the temperature changes")
+
+print("Difference between orders for South (taking into account Year)")
+lm5 = lmerTest::lmer(Avg_Difference ~ Order + (1|Year), data = South_Diff)
+summary(lm5)
+
+print("In the South, Passeriformes are not significantly more or less affected by the temperature changes. There is not enough evidence to reject the null hypothesis")
+
+sink()
+```
+
+```{r Lifespan Analysis, echo =F}
+library(readxl)
+lifespan = readxl::read_xlsx("birdlifespan.xlsx")
+colnames(lifespan)[2] = "Lifespan"
+Lifespan = lifespan$Lifespan
+
+North_Lifespan = add_column(North_Lifespan, Lifespan)
+South_Lifespan = add_column(South_Lifespan, Lifespan)
+
+North_Lifespan = na.omit(North_Lifespan)
+South_Lifespan = na.omit(South_Lifespan)
+
+North_Lifespan= North_Lifespan %>% pivot_longer(!c(Bird, Body_mass_g, Lifespan),
+                                                names_to = "Year",
+                                        values_to = "Avg_Difference")
+South_Lifespan = South_Lifespan %>% pivot_longer(!c(Bird, Body_mass_g, Lifespan),
+                                                 names_to = "Year",
+                                        values_to = "Avg_Difference")
+
+
+print("Repeated Measures ANCOVA -- using log(Lifespan)")
+lm2 = lmerTest::lmer(Avg_Difference ~ log(Lifespan) + (1 | Year),
+                     data = North_Lifespan)
+summary(lm2)
+plot(lm2)
+qqnorm(resid(lm2))
+qqline(resid(lm2))
+hist(resid(lm2))
+
+lm3= lmerTest::lmer(Avg_Difference ~ log(Lifespan)  + (1 | Year),
+                     data = South_Lifespan)
+summary(lm3)
+qqnorm(resid(lm3))
+qqline(resid(lm3))
+
+```
+
+``` {r find_project_diff, echo = F}
+find_project_diff = function(data, year, pole){
+  if (pole == "North"){
+    max_year = Project_maxNorth %>% dplyr::select(ends_with(".19"))
+    min_year = Project_minNorth %>% dplyr::select(ends_with(".19"))
+    if (year == ".30"){
+      max_year = max_year + 1.5
+      min_year = min_year
+    }
+    else if(year == ".50"){
+      max_year = max_year + 3
+      min_year = min_year
+    }
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if ((max_year[row,col] > UCT[row]) & (min_year[row,col] < LCT[row])){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+  else {
+    max_year = Project_maxSouth %>% dplyr::select(ends_with(".19"))
+    min_year = Project_minSouth %>% dplyr::select(ends_with(".19"))
+    if (year == ".30"){
+      max_year = max_year + 1.5
+      min_year = min_year 
+    }
+    else if(year == ".50"){
+      max_year = max_year + 3
+      min_year = min_year
+    }
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row] & min_year[row,col] < LCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+}
+
+```
+
+```{r Projected Findings, echo =F}
+Project_maxNorth = maxNorthData %>% dplyr::select(-c(UCT, LCT, Body.mass..g., X))%>%
+  dplyr::select(ends_with(".19")) %>% f.to.c() %>% 
+  add_column(Bird = maxNorthData$Bird,.before = 1)
+
+Project_maxSouth = maxSouthData %>% dplyr::select(ends_with(".19"))%>%
+  f.to.c() %>% add_column(Bird = maxNorthData$Bird,.before = 1)
+
+Project_minNorth = minNorthData %>% dplyr::select(ends_with(".19"))%>%
+  f.to.c() %>% add_column(Bird = maxNorthData$Bird,.before = 1)
+
+
+Project_minSouth = minSouthData %>% dplyr::select(ends_with(".19"))%>%
+  f.to.c() %>% add_column(Bird = maxNorthData$Bird,.before = 1)
+
+# colReplace <- function(x, replacement){
+#   colnames(x) <- gsub(".19", replacement, colnames(x)); x
+#   } 
+# Project_maxNorth = colReplace(Project_maxNorth, ".30")
+# Project_minNorth = colReplace(Project_minNorth, ".30")
+# Project_maxSouth = colReplace(Project_maxSouth, ".30")
+# Project_minSouth = colReplace(Project_minSouth, ".30")
+
+North_Proj_Diff = data.frame(Bird = maxNorthData$Bird)
+South_Proj_Diff = North_Proj_Diff
+for (year in c(".19",".30", ".50")){
+  North_Proj_Diff = find_project_diff(North_Proj_Diff, year = year, pole = "North")
+  South_Proj_Diff = find_project_diff(South_Proj_Diff, year = year, pole = "South")
+}
+
+colnames(North_Proj_Diff) = str_replace(colnames(North_Proj_Diff), "Avg_Diff.", "20")
+colnames(South_Proj_Diff) = str_replace(colnames(South_Proj_Diff), "Avg_Diff.", "20")
+
+m = data.frame(combn(colnames(North_Proj_Diff[2:4]),2), stringsAsFactors = F)
+df1 = data.frame(lapply(m, function(x) North_Proj_Diff[[x[2]]] - North_Proj_Diff[[x[1]]]))
+colnames(df1) = lapply(m, function(x) paste(x[2], x[1], sep="-"))
+North_Proj_Diff = df1
+
+m = data.frame(combn(colnames(South_Proj_Diff[2:4]),2), stringsAsFactors = F)
+df1 = data.frame(lapply(m, function(x) South_Proj_Diff[[x[2]]] - South_Proj_Diff[[x[1]]]))
+colnames(df1) = lapply(m, function(x) paste(x[2], x[1], sep="-"))
+South_Proj_Diff = df1
+
+North_Proj_Diff = North_Proj_Diff%>% pivot_longer(cols = everything(), names_to = "Year",
+                                        values_to = "Difference")
+
+South_Proj_Diff = South_Proj_Diff %>% pivot_longer(cols = everything(),names_to = "Year",
+                                        values_to = "Difference")
+
+
+summary.North = summarize(group_by(North_Proj_Diff, Year), Mean = mean(Difference),
+                          SE = 2* sd(Difference)/sqrt(length(Difference)))
+summary.South = summarize(group_by(South_Proj_Diff, Year), Mean = mean(Difference),
+                          SE = 2* sd(Difference)/sqrt(length(Difference)))
+
+print("Barplots")
+bar.North = ggplot(summary.North, aes(x =Year, Mean)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean +SE), width=0.2) +
+    labs(y="Average Difference", x = "Year to Year")+ theme_classic()+
+  geom_hline(yintercept =0)+ggtitle("North, Projected")
+
+tiff(filename = "Projected_North.tiff",width = 4, height = 4, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+bar.South = ggplot(summary.South, aes(x =Year, Mean)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean +SE), width=0.2) +
+    labs(y="Average Difference", x = "Year to Year")+ theme_classic() + 
+  geom_hline(yintercept =0) +ggtitle("South, Projected")
+tiff(filename = "Projected_South.tiff",width = 4, height = 4, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+
+
+```
+
+
+
+``` {r find_weather_metrics, echo = F}
+
+find_weather_metrics = function(data, year, pole){
+  if (pole == "North"){
+    max_year = maxNorthData %>% dplyr::select(ends_with(year))
+    min_year = minNorthData %>% dplyr::select(ends_with(year))
+    humid_year = NorthHumidity %>% dplyr::select(ends_with(year))
+    Pressure_year = NorthPressure %>% dplyr::select(ends_with(year))
+    Dew_year = NorthDew %>% dplyr::select(ends_with(year))
+    HI_year = NorthHI %>% dplyr::select(ends_with(year))
+    
+    list_of_data = list(max_year, min_year, Dew_year,
+                        HI_year)
+    
+    list_of_data = lapply(list_of_data, f.to.c)
+    
+    max_year = list_of_data[[1]]
+    min_year = list_of_data[[2]]
+    Dew_year = list_of_data[[3]]
+    HI_year = list_of_data[[4]]
+    
+    Avg_Humid = rowMeans(humid_year, na.rm = T)
+    Avg_Pressure = rowMeans(Pressure_year, na.rm =T)
+    Avg_Dew = rowMeans(Dew_year, na.rm =T)
+    Avg_HI = rowMeans(HI_year, na.rm = T)
+    Max_Humid = apply(humid_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Humid = apply(humid_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_Pressure = apply(Pressure_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Pressure = apply(Pressure_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_Dew = apply(Dew_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Dew = apply(Dew_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_HI = apply(HI_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_HI = apply(HI_year, MARGIN = 1, FUN = min, na.rm =T)
+    
+    Avg_Diff = rep(NA, nrow(maxNorthData))
+    for (row in 1:nrow(maxNorthData)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if ((max_year[row,col] > UCT[row]) & (min_year[row,col] < LCT[row])){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    Year = rep(year, nrow(maxNorthData))
+    to.bind.df = data.frame(Bird, Body_mass_g,
+                            Avg_Diff, Avg_Humid, Avg_Dew, Avg_HI, Max_Humid,
+                 Min_Humid , Max_Dew, Min_Dew, 
+                 Max_HI, Min_HI, Year)
+    data = bind_rows(data, to.bind.df)
+    data
+  }
+  else {
+    max_year = maxSouthData %>% dplyr::select(ends_with(year))
+    min_year = minSouthData %>% dplyr::select(ends_with(year))
+    humid_year = SouthHumidity %>% dplyr::select(ends_with(year))
+    Pressure_year = SouthPressure %>% dplyr::select(ends_with(year))
+    Dew_year = SouthDew %>% dplyr::select(ends_with(year))
+    HI_year = SouthHI %>% dplyr::select(ends_with(year))
+    Avg_Diff = rep(NA, nrow(maxNorthData))
+    
+    list_of_data = list(max_year, min_year, Dew_year,
+                        HI_year)
+    
+    list_of_data = lapply(list_of_data, f.to.c)
+    
+    max_year = list_of_data[[1]]
+    min_year = list_of_data[[2]]
+    Dew_year = list_of_data[[3]]
+    HI_year = list_of_data[[4]]
+    
+    Avg_Humid = rowMeans(humid_year, na.rm = T)
+    Avg_Pressure = rowMeans(Pressure_year, na.rm =T)
+    Avg_Dew = rowMeans(Dew_year, na.rm =T)
+    Avg_HI = rowMeans(HI_year, na.rm = T)
+    Max_Humid = apply(humid_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Humid = apply(humid_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_Pressure = apply(Pressure_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Pressure = apply(Pressure_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_Dew = apply(Dew_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_Dew = apply(Dew_year, MARGIN = 1, FUN = min, na.rm =T)
+    Max_HI = apply(HI_year, MARGIN = 1, FUN = max, na.rm =T)
+    Min_HI = apply(HI_year, MARGIN = 1, FUN = min, na.rm =T)
+    for (row in 1:nrow(maxNorthData)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row] & min_year[row,col] < LCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    Year = rep(year, nrow(maxNorthData))
+    to.bind.df = data.frame(Bird, Body_mass_g,
+                            Avg_Diff, Avg_Humid, Avg_Dew, Avg_HI, Max_Humid,
+                 Min_Humid, Max_Dew, Min_Dew, 
+                 Max_HI, Min_HI, Year)
+    data = bind_rows(data, to.bind.df)
+    data
+  }
+}
+
+```
+
+``` {r Mixed Effects, echo = F}
+maxNorthData = read.csv("FinalNorthMaxTemp.csv")
+minNorthData = read.csv("FinalNorthMinTemp.csv")
+maxSouthData = read.csv("FinalSouthMaxTemp.csv")
+minSouthData = read.csv("FinalSouthMinTemp.csv")
+NorthHumidity = read.csv("FinalNorthHumidity.csv")
+SouthHumidity = read.csv("FinalSouthHumidity.csv")
+NorthPressure = read.csv("FinalNorthPressure.csv")
+SouthPressure = read.csv("FinalSouthPressure.csv")
+NorthDew = read.csv("FinalNorthDewPoint.csv")
+SouthDew = read.csv("FinalSouthDewPoint.csv")
+NorthHI = read.csv("FinalNorthHeatIndex.csv")
+SouthHI = read.csv("FinalSouthHeatIndex.csv")
+
+
+UCT = maxNorthData$UCT
+LCT = maxNorthData$LCT
+Bird = maxNorthData$Bird
+Body_mass_g = maxNorthData$Body.mass..g.
+
+North_Days = maxNorthData %>% dplyr::select(Bird) %>% add_column(Body_mass_g)%>%
+  add_column(Avg_Diff = NA) %>% add_column(Avg_Humid = NA) %>%
+  add_column(Avg_Dew = NA) %>%
+  add_column(Avg_HI = NA) %>% add_column(Max_Humid = NA) %>%add_column(Min_Humid =NA)%>%  
+  add_column(Max_Dew = NA) %>% add_column(Min_Dew =NA)%>%
+  add_column(Max_HI = NA) %>% add_column(Min_HI = NA) %>%
+  add_column(Year = NA)
+#North_Days = maxNorthData %>% dplyr::select(Bird) %>% add_column(Body_mass_g)
+South_Days = North_Days
+
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  North_Days = find_weather_metrics(North_Days, year = year, pole = "North")
+  South_Days = find_weather_metrics(South_Days, year = year, pole = "South")
+}
+North_Days = na.omit(North_Days)
+South_Days = na.omit(South_Days)
+
+lm_all_N = lmer(Avg_Diff ~ Avg_Humid+ Avg_Dew+ Avg_HI+ Max_Humid+
+                 Min_Humid+ Max_Dew+ Min_Dew+ 
+                 Max_HI + Min_HI + (1 |Bird), data = North_Days)
+summary(lm_all_N)
+
+qqnorm(resid(lm_all_N))
+qqline(resid(lm_all_N))
+
+#bestglmer(lm_all_N, data = North_Days)
+#output -- best subset
+lm_BIC_N = lmer(Avg_Diff~Avg_Humid+Avg_Dew+Avg_HI+Max_HI+(1 | Bird), data = North_Days)
+summary(lm_BIC_N)
+qqnorm(resid(lm_BIC_N))
+qqline(resid(lm_BIC_N))
+
+lm_all_S = lmer(Avg_Diff ~ Avg_Humid+ Avg_Dew+ Avg_HI+ Max_Humid+
+                 Min_Humid+ Max_Dew+ Min_Dew+ 
+                 Max_HI + Min_HI + (1 |Bird), data = South_Days)
+summary(lm_all_S)
+#bestglmer(lm_all_S, data =South_Days)
+#output -- best subset
+lm_BIC_S = lmer(Avg_Diff~Avg_Humid+Avg_Dew+Max_HI+(1 | Bird), data= South_Days)
+summary(lm_BIC_S)
+
+```
+
+```{r find_slope, echo = F}
+find_slope = function(row_data){
+  temp_df = data.frame(Stress = row_data, x = seq_along(row_data))
+  median_lm = mblm(Stress ~ x, data = temp_df)
+  #print(summary(median_lm))
+  return(coef(median_lm)[2])
+}
+``` 
+
+``` {r find_diffMonth, echo = F}
+find_diffMonth = function(data, month, year, pole){
+  if (pole == "North"){
+    max_year = maxNorthData %>% dplyr::select(ends_with(year))%>%
+      dplyr::select(starts_with(paste0("X",month)))
+    min_year = minNorthData %>% dplyr::select(ends_with(year))%>%
+      dplyr::select(starts_with(paste0("X",month)))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if ((max_year[row,col] > UCT[row]) & (min_year[row,col] < LCT[row])){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+  else {
+    max_year = maxSouthData %>% dplyr::select(ends_with(year))%>%
+      dplyr::select(starts_with(paste0("X",month)))
+    min_year = minSouthData %>% dplyr::select(ends_with(year))%>%
+      dplyr::select(starts_with(paste0("X",month)))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Avg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      abs_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row] & min_year[row,col] < LCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row] +
+            LCT[row] - min_year[row,col]
+        }
+        else if (max_year[row,col] > UCT[row]){
+          abs_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          abs_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Avg_Diff[row] = mean(abs_diff_row)
+    }
+    data = cbind(data, Avg_Diff)
+    names(data)[names(data) == 'Avg_Diff'] <- 
+      paste('Avg_Diff', year, sep ="")
+    data
+  }
+}
+
+```
+
+``` {r Heatmaps, echo = F}
+##### By Month
+library(RColorBrewer)
+library(mblm)
+library(gplots)
+North_byMonth = maxNorthData %>% dplyr::select(Bird)
+South_byMonth = North_byMonth
+Body_mass_g = maxNorthData$Body.mass..g.
+months_vec = c("Jan", "Feb", "Mar", "Apr","May","Jun","Jul",
+               "Aug","Sept","Oct","Nov", "Dec")
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  for (month in 1:12){
+    
+    North_byMonth = find_diffMonth(North_byMonth, month = as.character(month),
+                                   year = year, pole = "North")
+    South_byMonth = find_diffMonth(South_byMonth, month = as.character(month),
+                                   year = year, pole = "South")
+  }
+}
+North_byMonth = North_byMonth %>% remove_rownames %>% column_to_rownames(var="Bird")
+base::colnames(North_byMonth) = gsub("Avg_Diff.", "", base::colnames(North_byMonth))
+
+South_byMonth = South_byMonth %>% remove_rownames %>% column_to_rownames(var="Bird")
+base::colnames(South_byMonth) = gsub("Avg_Diff.", "", base::colnames(South_byMonth))
+
+North_byMonth = add_column(North_byMonth, Body_mass_g)
+South_byMonth = add_column(South_byMonth, Body_mass_g)
+
+##### Arrange by Body Mass
+North_byMonth = North_byMonth[base::order(North_byMonth["Body_mass_g"]),]
+North_byMonth = North_byMonth[-61]
+
+heatmap(as.matrix(North_byMonth),
+        Rowv = NA, Colv = NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Monthly",
+        xlab = "Month and Year", cexRow = 0.5)
+print("Sorted by Mass")
+
+South_byMonth = South_byMonth[base::order(South_byMonth["Body_mass_g"]),]
+South_byMonth = South_byMonth[-61]
+
+heatmap(as.matrix(South_byMonth), Rowv = NA, Colv=NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Monthly",
+        xlab = "Month and Year")
+print("Sorted by Mass")
+
+##### By Slopes
+North_byMonth = cbind(North_byMonth,
+                      Slopes =apply(X = North_byMonth, MARGIN= 1,
+                                    FUN = find_slope))
+#write.csv(North_byMonth, file = "NorthSlopes.csv")
+North_byMonth = North_byMonth[base::order(North_byMonth["Slopes"]),]
+
+North_byMonth = North_byMonth[-61]
+heatmap(as.matrix(North_byMonth),
+        Rowv = NA, Colv = NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Monthly",
+        xlab = "Month and Year", cexRow = 0.3)
+print("Sorted by Slopes")
+
+South_byMonth = cbind(South_byMonth,
+                      Slopes =apply(X = South_byMonth, MARGIN= 1,
+                                    FUN = find_slope))
+#write.csv(South_byMonth, file = "SouthSlopes.csv")
+South_byMonth = South_byMonth[base::order(South_byMonth["Slopes"]),]
+South_byMonth = South_byMonth[-61]
+heatmap(as.matrix(South_byMonth), Rowv = NA, Colv=NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Monthly",
+        xlab = "Month and Year")
+print("")
+
+##### By Year 
+North_byYear = maxNorthData %>% dplyr::select(Bird)
+South_byYear = North_byYear
+
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  North_byYear = find_diff(North_byYear, year = year, pole = "North")
+  South_byYear = find_diff(South_byYear, year = year, pole = "South")
+}
+North_byYear = North_byYear %>% remove_rownames %>% column_to_rownames(var="Bird")
+base::colnames(North_byYear) = gsub("Avg_Diff.", "", base::colnames(North_byYear))
+  
+South_byYear = South_byYear %>% remove_rownames %>% column_to_rownames(var="Bird")
+base::colnames(South_byYear) = gsub("Avg_Diff.", "", base::colnames(South_byYear))
+
+##### Arrange by Body Mass
+North_byYear = add_column(North_byYear, Body_mass_g)
+South_byYear = add_column(South_byYear, Body_mass_g)
+
+North_byYear = North_byYear[base::order(North_byYear["Body_mass_g"]),]
+North_byYear = North_byYear[-6]
+
+heatmap(as.matrix(North_byYear),
+        Rowv = NA, Colv = NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
+        xlab = "Year", cexRow = 0.5)
+print("Sorted by Mass")
+
+South_byYear = South_byYear[base::order(South_byYear["Body_mass_g"]),]
+South_byYear = South_byYear[-6]
+heatmap(as.matrix(South_byYear), Rowv = NA, Colv=NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
+        xlab = "Year")
+print("Sorted by Mass")
+
+print("I would focus on these over other heatmaps, because they tell an important story!")
+##### By Slopes
+North_byYear = cbind(North_byYear,
+                      Slopes =apply(X = North_byYear, MARGIN= 1,
+                                    FUN = find_slope))
+North_byYear = North_byYear[base::order(North_byYear["Slopes"]),]
+North_byYear = North_byYear[-6]
+
+tiff(filename = "North_Heatmap.tiff",width = 8, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(North_byYear), Colv = NA, Rowv = NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
+        xlab = "Year", cexRow = 0.35)
+dev.off()
+print("")
+
+South_byYear = cbind(South_byYear,
+                      Slopes =apply(X = South_byYear, MARGIN= 1,
+                                    FUN = find_slope))
+South_byYear = South_byYear[base::order(South_byYear["Slopes"]),]
+South_byYear = South_byYear[-6]
+tiff(filename = "South_Heatmap.tiff",width = 8, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(South_byYear), Rowv =NA, Colv= NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
+        xlab = "Year", cexRow = 0.35)
+dev.off()
+
+```
+
+```{r Post-Hoc Analysis, echo = F} 
+print("2015")
+t.test(North_Diff$Avg_Difference[North_Diff$Year == "2015"],
+       South_Diff$Avg_Difference[South_Diff$Year == "2015"], paired = T)
+
+print("2016")
+t.test(North_Diff$Avg_Difference[North_Diff$Year == "2016"],
+       South_Diff$Avg_Difference[South_Diff$Year == "2016"], paired = T)
+
+print("2017")
+t.test(North_Diff$Avg_Difference[North_Diff$Year == "2017"],
+       South_Diff$Avg_Difference[South_Diff$Year == "2017"], paired = T)
+
+print("2018")
+t.test(North_Diff$Avg_Difference[North_Diff$Year == "2018"],
+       South_Diff$Avg_Difference[South_Diff$Year == "2018"], paired = T)
+
+print("2019")
+t.test(North_Diff$Avg_Difference[North_Diff$Year == "2019"],
+       South_Diff$Avg_Difference[South_Diff$Year == "2019"], paired = T)
+
+
+```
+
+```{r Phylogeny, echo =F}
+library(ape)
+tree = read.nexus("tree-pruner/output.nex")
+#plot(tree[[1]], cex = 0.4)
+
+tiff(filename = "birdtree.tiff", width = 10, height = 10, units = "in", res = 300)
+plot(consensus(tree, p = 0.7), cex = 0.5)
+dev.off()
+```
