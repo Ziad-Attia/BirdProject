@@ -383,6 +383,8 @@ posthoc.friedman.nemenyi.test(Avg_Difference ~ Year | Bird, data = South_Diff)
 
 
 ##### Confidence Intervals
+North_Diff = North_Diff %>% dplyr::select(-c(Order))
+South_Diff = South_Diff %>% dplyr::select(-c(Order))
 print("2 Standard errors, comparing year to year differences")
 North_Diff_wide= North_Diff %>% pivot_wider(names_from = "Year",
                                         values_from = "Avg_Difference")
@@ -487,6 +489,9 @@ library(readxl)
 lifespan = readxl::read_xlsx("birdlifespan.xlsx")
 colnames(lifespan)[2] = "Lifespan"
 Lifespan = lifespan$Lifespan
+
+North_Lifespan = North_Lifespan %>% dplyr::select(-c(Order))
+South_Lifespan = South_Lifespan %>% dplyr::select(-c(Order))
 
 North_Lifespan = add_column(North_Lifespan, Lifespan)
 South_Lifespan = add_column(South_Lifespan, Lifespan)
@@ -624,6 +629,17 @@ for (year in c(".19",".30", ".50")){
 colnames(North_Proj_Diff) = str_replace(colnames(North_Proj_Diff), "Avg_Diff.", "20")
 colnames(South_Proj_Diff) = str_replace(colnames(South_Proj_Diff), "Avg_Diff.", "20")
 
+North_Proj_Diff = cbind(North_Proj_Diff,
+                      Slopes =apply(X = North_Proj_Diff[,2:4], MARGIN= 1,
+                                    FUN = find_slope))
+write.csv(North_Proj_Diff, file = "Projected_Slopes_N.csv")
+
+South_Proj_Diff = cbind(South_Proj_Diff,
+                      Slopes =apply(X = South_Proj_Diff[,2:4], MARGIN= 1,
+                                    FUN = find_slope))
+write.csv(South_Proj_Diff, file = "Projected_Slopes_S.csv")
+length(which(North_Proj_Diff$Slopes>0))
+length(which(South_Proj_Diff$Slopes>0))
 m = data.frame(combn(colnames(North_Proj_Diff[2:4]),2), stringsAsFactors = F)
 df1 = data.frame(lapply(m, function(x) North_Proj_Diff[[x[2]]] - North_Proj_Diff[[x[1]]]))
 colnames(df1) = lapply(m, function(x) paste(x[2], x[1], sep="-"))
@@ -929,6 +945,7 @@ find_diffMonth = function(data, month, year, pole){
 library(RColorBrewer)
 library(mblm)
 library(gplots)
+library(tiff)
 North_byMonth = maxNorthData %>% dplyr::select(Bird)
 South_byMonth = North_byMonth
 Body_mass_g = maxNorthData$Body.mass..g.
@@ -1004,30 +1021,31 @@ for (year in c(".15", ".16",".17", ".18", ".19")){
   South_byYear = find_diff(South_byYear, year = year, pole = "South")
 }
 North_byYear = North_byYear %>% remove_rownames %>% column_to_rownames(var="Bird")
-base::colnames(North_byYear) = gsub("Avg_Diff.", "", base::colnames(North_byYear))
+base::colnames(North_byYear) = gsub("Avg_Diff.", "20", base::colnames(North_byYear))
   
 South_byYear = South_byYear %>% remove_rownames %>% column_to_rownames(var="Bird")
-base::colnames(South_byYear) = gsub("Avg_Diff.", "", base::colnames(South_byYear))
+base::colnames(South_byYear) = gsub("Avg_Diff.", "20", base::colnames(South_byYear))
 
 ##### Arrange by Body Mass
-North_byYear = add_column(North_byYear, Body_mass_g)
-South_byYear = add_column(South_byYear, Body_mass_g)
-
-North_byYear = North_byYear[base::order(North_byYear["Body_mass_g"]),]
-North_byYear = North_byYear[-6]
-
-heatmap(as.matrix(North_byYear),
-        Rowv = NA, Colv = NA,
-        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
-        xlab = "Year", cexRow = 0.5)
-print("Sorted by Mass")
-
-South_byYear = South_byYear[base::order(South_byYear["Body_mass_g"]),]
-South_byYear = South_byYear[-6]
-heatmap(as.matrix(South_byYear), Rowv = NA, Colv=NA,
-        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
-        xlab = "Year")
-print("Sorted by Mass")
+# North_byYear = add_column(North_byYear, Body_mass_g)
+# South_byYear = add_column(South_byYear, Body_mass_g)
+# 
+# North_byYear = North_byYear[base::order(North_byYear["Body_mass_g"]),]
+# North_byYear_increasing = North_byYear[North_byYear$Slopes]
+# North_byYear = North_byYear[-6]
+# 
+# heatmap(as.matrix(North_byYear),
+#         Rowv = NA, Colv = NA,
+#         col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
+#         xlab = "Year", cexRow = 0.5)
+# print("Sorted by Mass")
+# 
+# South_byYear = South_byYear[base::order(South_byYear["Body_mass_g"]),]
+# South_byYear = South_byYear[-6]
+# heatmap(as.matrix(South_byYear), Rowv = NA, Colv=NA,
+#         col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
+#         xlab = "Year")
+# print("Sorted by Mass")
 
 print("I would focus on these over other heatmaps, because they tell an important story!")
 ##### By Slopes
@@ -1035,12 +1053,21 @@ North_byYear = cbind(North_byYear,
                       Slopes =apply(X = North_byYear, MARGIN= 1,
                                     FUN = find_slope))
 North_byYear = North_byYear[base::order(North_byYear["Slopes"]),]
-North_byYear = North_byYear[-6]
+#write.csv(North_byYear, file = "North_Sorted.csv")
+North_byYear_increasing = North_byYear[North_byYear$Slopes >0,]
+North_byYear_decreasing = North_byYear[North_byYear$Slopes <=0,]
+North_byYear_increasing = North_byYear_increasing[-6]
+North_byYear_decreasing = North_byYear_decreasing[-6]
 
-tiff(filename = "North_Heatmap.tiff",width = 8, height = 10, units = 'in', res = 300, compression = 'lzw')
-heatmap(as.matrix(North_byYear), Colv = NA, Rowv = NA,
+tiff(filename = "North_Heatmap_inc.tiff",width = 10, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(North_byYear_increasing), Colv = NA, Rowv = NA,
         col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
-        xlab = "Year", cexRow = 0.35)
+        xlab = "Year", cexRow = 0.50,cex = 1.3)
+dev.off()
+tiff(filename = "North_Heatmap_dec.tiff",width = 10, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(North_byYear_decreasing), Colv = NA, Rowv = NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "North, Yearly",
+        xlab = "Year", cexRow = 0.50, cex = 1.3)
 dev.off()
 print("")
 
@@ -1048,12 +1075,22 @@ South_byYear = cbind(South_byYear,
                       Slopes =apply(X = South_byYear, MARGIN= 1,
                                     FUN = find_slope))
 South_byYear = South_byYear[base::order(South_byYear["Slopes"]),]
-South_byYear = South_byYear[-6]
-tiff(filename = "South_Heatmap.tiff",width = 8, height = 10, units = 'in', res = 300, compression = 'lzw')
-heatmap(as.matrix(South_byYear), Rowv =NA, Colv= NA,
+write.csv(South_byYear, file = "South_Sorted.csv")
+South_byYear_increasing = South_byYear[South_byYear$Slopes >0,]
+South_byYear_decreasing = South_byYear[South_byYear$Slopes <=0,]
+South_byYear_increasing = South_byYear_increasing[-6]
+South_byYear_decreasing = South_byYear_decreasing[-6]
+tiff(filename = "South_Heatmap_inc.tiff",width = 10, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(South_byYear_increasing), Rowv =NA, Colv= NA,
         col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
-        xlab = "Year", cexRow = 0.35)
+        xlab = "Year", cexRow = 0.50, cex = 1.3)
 dev.off()
+tiff(filename = "South_Heatmap_dec.tiff",width = 10, height = 10, units = 'in', res = 300, compression = 'lzw')
+heatmap(as.matrix(South_byYear_decreasing), Rowv =NA, Colv= NA,
+        col = colorRampPalette(brewer.pal(8,"Blues"))(3), main = "South, Yearly",
+        xlab = "Year", cexRow = 0.50, cex = 1.3)
+dev.off()
+
 
 ```
 
@@ -1077,7 +1114,314 @@ t.test(North_Diff$Avg_Difference[North_Diff$Year == "2018"],
 print("2019")
 t.test(North_Diff$Avg_Difference[North_Diff$Year == "2019"],
        South_Diff$Avg_Difference[South_Diff$Year == "2019"], paired = T)
+p.vals = c(0.007781, 0.01113, 0.008656, 0.01737, 0.01152)
+adj.p = p.adjust(p.vals, method = "BH")
+adj.p
 
+Merged_data = North_Diff %>% add_column(Pole = rep("North", 720))
+Merged_data = Merged_data %>% bind_rows(
+  South_Diff %>% add_column(Pole = rep("South", 720)))
+
+summary = summarize(group_by(Merged_data, Year, Pole),
+                    MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+
+bar.graph = ggplot(summary, aes(x =Year, y=MeanAvg_Difference, 
+                                fill = Pole)) +
+  geom_col(position = position_dodge(0.95)) +
+  geom_bar(stat = "identity", color = 'black',
+           width=0.9, position=position_dodge(0.95))+
+  geom_errorbar(aes(
+    ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2,
+    position = position_dodge(0.95)) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North vs South")
+
+
+tiff(filename = "NorthvsSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.graph
+dev.off()
+
+
+```
+
+``` {r find_all_diff, echo = F}
+find_all_diff = function(data, year, pole){
+  if (pole == "North"){
+    max_year = maxNorthData %>% dplyr::select(ends_with(year))
+    min_year = minNorthData %>% dplyr::select(ends_with(year))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Pos_Diff = rep(NA, nrow(data))
+    Neg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      pos_diff_row = rep(0, ncol(max_year))
+      neg_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row]){
+          pos_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          neg_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Pos_Diff[row] = mean(pos_diff_row)
+      Neg_Diff[row] = mean(neg_diff_row)
+    }
+    data = cbind(data, Pos_Diff, Neg_Diff)
+    names(data)[names(data) == 'Pos_Diff'] <- 
+      paste('Pos_Diff', year, sep ="")
+    names(data)[names(data) == 'Neg_Diff'] <- 
+      paste('Neg_Diff', year, sep ="")
+    data
+  }
+  else {
+    max_year = maxSouthData %>% dplyr::select(ends_with(year))
+    min_year = minSouthData %>% dplyr::select(ends_with(year))
+    max_year = f.to.c(max_year)
+    min_year = f.to.c(min_year)
+    Pos_Diff = rep(NA, nrow(data))
+    Neg_Diff = rep(NA, nrow(data))
+    for (row in 1:nrow(data)){
+      pos_diff_row = rep(0, ncol(max_year))
+      neg_diff_row = rep(0, ncol(max_year))
+      for (col in 1:ncol(max_year)){
+        if (max_year[row,col] > UCT[row]){
+          pos_diff_row[col] = max_year[row,col] - UCT[row]
+        }
+        else if(min_year[row,col] < LCT[row]){
+          neg_diff_row[col] =  LCT[row] - min_year[row,col] 
+        }
+      }
+      Pos_Diff[row] = mean(pos_diff_row)
+      Neg_Diff[row] = mean(neg_diff_row)
+    }
+    data = cbind(data, Pos_Diff, Neg_Diff)
+    names(data)[names(data) == 'Pos_Diff'] <- 
+      paste('Pos_Diff', year, sep ="")
+    names(data)[names(data) == 'Neg_Diff'] <- 
+      paste('Neg_Diff', year, sep ="")
+    data
+  }
+}
+
+```
+
+```{r Make Barplot, echo =F}
+
+```
+
+```{r Plotting, echo =F}
+library(zoo)
+library(tidyquant)
+North_Sorted = read.csv("North_Sorted.csv")
+South_Sorted = read.csv("South_Sorted.csv")
+Birds_Stressed_N = North_Sorted$Bird.Species[North_Sorted$Slopes>0]
+Birds_Stressed_S = South_Sorted$Bird.Species[South_Sorted$Slopes>0]
+Birds_NotStressed_N = North_Sorted$Bird.Species[North_Sorted$Slopes<=0]
+Birds_NotStressed_S = South_Sorted$Bird.Species[South_Sorted$Slopes<=0]
+
+North_Stressed = North_Diff %>% dplyr::filter(Bird %in% Birds_Stressed_N)
+South_Stressed = South_Diff %>% dplyr::filter(Bird %in% Birds_Stressed_S)
+
+North_NotStressed = North_Diff %>% dplyr::filter(Bird %in% Birds_NotStressed_N)
+South_NotStressed = South_Diff %>% dplyr::filter(Bird %in% Birds_NotStressed_S)
+
+scatter1 = ggplot(data = North_Diff, aes(x = log(Body_mass_g), y = log(Avg_Difference+1)))+
+  geom_point() +geom_quantile(quantiles = 0.5)+
+  labs(y = "Log(Difference + 1)", x = "Log(Body Mass (g))")+
+  ggtitle("Log-Log Scatterplot of Stress vs Body Mass (g), North")+
+  facet_wrap(~Year)
+
+tiff(filename = "WeightDifferenceNorth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+scatter1
+dev.off()
+
+scatter2 = ggplot(data = South_Diff, aes(x = log(Body_mass_g), y = log(Avg_Difference+1)))+
+  geom_point() +geom_quantile(quantiles = 0.5)+
+  labs(y = "Log(Difference + 1)", x = "Log(Body Mass (g))")+
+  ggtitle("Log-Log Scatterplot of Stress vs Body Mass (g), South")+ facet_wrap(~Year)
+tiff(filename = "WeightDifferenceSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+scatter2
+dev.off()
+
+colnames(North_Lifespan) = str_replace(colnames(North_Lifespan), "Avg_Diff.", "20")
+colnames(South_Lifespan) = str_replace(colnames(South_Lifespan), "Avg_Diff.", "20")
+North_Lifespan_Long = North_Lifespan %>%
+  pivot_longer(cols = !c(Bird, Body_mass_g, Order, Lifespan), 
+               names_to = "Year", values_to = "Difference")
+South_Lifespan_Long = South_Lifespan %>%
+  pivot_longer(cols = !c(Bird, Body_mass_g, Order, Lifespan), 
+               names_to = "Year", values_to = "Difference")
+
+scatter3 = ggplot(data = North_Lifespan_Long,
+                  aes(x = log(Lifespan), y = Difference))+
+  geom_point() +geom_quantile(quantiles = 0.5)+
+  labs(y = "Average Difference", x = "Log(Lifespan)")+
+  ggtitle("Scatterplot of Stress vs Log(Lifespan), North")+
+  facet_wrap(~Year)
+tiff(filename = "LifespanDifferenceNorth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+scatter3
+dev.off()
+
+scatter4 = ggplot(data = South_Lifespan_Long,
+                  aes(x = log(Lifespan), y = Difference))+
+  geom_point() +geom_quantile(quantiles = 0.5)+
+  labs(y = "Average Difference", x = "Log(Lifespan)")+
+  ggtitle("Scatterplot of Stress vs Log(Lifespan), South")+
+  facet_wrap(~Year)
+tiff(filename = "LifespanDifferenceSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+scatter4
+dev.off()
+summary.North = summarize(group_by(North_Diff, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+summary.South = summarize(group_by(South_Diff, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+
+bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North")
+
+tiff(filename = "AverageDifferenceNorth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+
+bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South")
+tiff(filename = "AverageDifferenceSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+
+summary.North = summarize(group_by(North_Stressed, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+summary.South = summarize(group_by(South_Stressed, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+
+bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North")
+tiff(filename = "AverageDifferenceNorthStressed.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South")
+tiff(filename = "AverageDifferenceSouthStressed.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+
+summary.North = summarize(group_by(North_NotStressed, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+summary.South = summarize(group_by(South_NotStressed, Year), MeanAvg_Difference = mean(Avg_Difference),
+                          SE = sd(Avg_Difference)/sqrt(length(Avg_Difference)))
+
+bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North, Increasing Stress")
+tiff(filename = "AverageDifferenceNorthNotStressed.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Average Difference")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South, Decreasing Stress")
+tiff(filename = "AverageDifferenceSouthNotStressed.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+#####
+
+North_All_Diff = maxNorthData %>% dplyr::select(Bird) %>% add_column(Body_mass_g)%>%
+  add_column(Order)
+South_All_Diff = North_All_Diff
+for (year in c(".15", ".16",".17", ".18", ".19")){
+  North_All_Diff = find_all_diff(North_All_Diff, year = year, pole = "North")
+  South_All_Diff = find_all_diff(South_All_Diff, year = year, pole = "South")
+}
+North_Pos_Diff = North_All_Diff %>% dplyr::select(c(Bird, starts_with("Pos_Diff"))) %>%
+  pivot_longer(cols = !c(Bird), names_to = "Year", values_to = "PosDiff")
+North_Neg_Diff = North_All_Diff %>% dplyr::select(c(Bird, starts_with("Neg_Diff")))%>%
+  pivot_longer(cols = !c(Bird), names_to = "Year", values_to = "NegDiff")
+
+South_Pos_Diff = South_All_Diff %>% dplyr::select(c(Bird, starts_with("Pos_Diff")))%>%
+  pivot_longer(cols = !c(Bird), names_to = "Year", values_to = "PosDiff")
+South_Neg_Diff = South_All_Diff %>% dplyr::select(c(Bird, starts_with("Neg_Diff")))%>%
+  pivot_longer(cols = !c(Bird), names_to = "Year", values_to = "NegDiff")
+
+summary.North = summarize(group_by(North_Pos_Diff, Year), MeanAvg_Difference = mean(PosDiff),
+                          SE = sd(PosDiff)/sqrt(length(PosDiff)))
+summary.South = summarize(group_by(South_Pos_Diff, Year), MeanAvg_Difference = mean(PosDiff),
+                          SE = sd(PosDiff)/sqrt(length(PosDiff)))
+
+bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Stress due to heat")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North")
+tiff(filename = "HeatNorth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Stress due to heat")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South")
+tiff(filename = "HeatSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
+
+summary.North = summarize(group_by(North_Neg_Diff, Year), MeanAvg_Difference = mean(NegDiff),
+                          SE = sd(NegDiff)/sqrt(length(NegDiff)))
+summary.South = summarize(group_by(South_Neg_Diff, Year), MeanAvg_Difference = mean(NegDiff),
+                          SE = sd(NegDiff)/sqrt(length(NegDiff)))
+
+bar.North = ggplot(summary.North, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Stress due to cold")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0)+ggtitle("North")
+tiff(filename = "ColdNorth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.North
+dev.off()
+
+bar.South = ggplot(summary.South, aes(x =Year, MeanAvg_Difference)) +
+  geom_col() + geom_bar(stat = "identity", color = 'black', fill = 'grey')+
+  geom_errorbar(aes(ymin = MeanAvg_Difference - SE, ymax = MeanAvg_Difference +SE), width=0.2) +
+    labs(y="Stress due to cold")+
+  scale_x_discrete(labels= c("2015", "2016", "2017","2018", "2019")) + theme_classic() + geom_hline(yintercept =0) +ggtitle("South")
+tiff(filename = "ColdSouth.tiff",
+     width = 6, height = 6, units = 'in', res = 300, compression = 'lzw')
+bar.South
+dev.off()
 
 ```
 
